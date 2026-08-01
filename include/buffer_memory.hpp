@@ -1,7 +1,6 @@
 #pragma once
 
 #include "common.hpp"
-#include <atomic>
 #include <cerrno>
 #include <chrono>
 #include <cstddef>
@@ -10,8 +9,6 @@
 #include <cstring>
 #include <fcntl.h>
 #include <new>
-#include <optional>
-#include <stdexcept>
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <thread>
