@@ -5,6 +5,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <fcntl.h>
+#include <iterator>
 #include <new>
 #include <string>
 #include <sys/types.h>
@@ -15,6 +16,8 @@ namespace Code::Buffer {
 
 template<typename T, size_t MaxObjSize>
 concept PushableObject = std::is_trivially_copyable_v<T> && (sizeof(T) <= MaxObjSize);
+template<size_t MaxObjSize>
+concept DesiredSize = MaxObjSize == 256 || MaxObjSize == 512 || MaxObjSize == 1024 || MaxObjSize == 4196;
 
 inline constexpr auto relaxed = std::memory_order_relaxed;
 inline constexpr auto acquire = std::memory_order_acquire;

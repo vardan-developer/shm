@@ -10,7 +10,9 @@
 
 namespace Code::Buffer {
 
-template<typename Derived, bool Overwrite, size_t MaxObjSize> class BaseBuffer {
+template<typename Derived, bool Overwrite, size_t MaxObjSize>
+    requires DesiredSize<MaxObjSize>
+class BaseBuffer {
 
         // TODO: can we change the layout of the code to load 2 things at once the
         // version and data live in one Slot together
