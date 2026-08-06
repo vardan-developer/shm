@@ -14,7 +14,6 @@
 #include <stdexcept>
 #include <sys/types.h>
 #include <thread>
-#include <type_traits>
 #include <vector>
 
 class HeapBufNoOverwriteSingleTest : public testing::Test {
