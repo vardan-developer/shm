@@ -31,6 +31,7 @@ foreach(test_src IN LISTS TEST_SOURCES)
     set_target_properties(${test_name} PROPERTIES
       RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/bin/tests
     )
+    gtest_discover_tests(${test_name})
 
     add_executable(${test_name}_tsan ${test_src})
     target_include_directories(${test_name}_tsan
@@ -41,5 +42,5 @@ foreach(test_src IN LISTS TEST_SOURCES)
     )
     target_compile_options(${test_name}_tsan PRIVATE -fsanitize=thread -g)
     target_link_options(${test_name}_tsan PRIVATE -fsanitize=thread)
-    gtest_discover_tests(${test_name})
+    gtest_discover_tests(${test_name}_tsan)
 endforeach()
