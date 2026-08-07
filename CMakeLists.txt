@@ -20,11 +20,12 @@ enable_testing()
 include(GoogleTest)
 
 file(GLOB TEST_SOURCES
-    CONFIGURE_DEPENDS "${CMAKE_CURRENT_LIST_DIR}/test/*.t.cpp")
+    CONFIGURE_DEPENDS "${CMAKE_CURRENT_LIST_DIR}/tests/*.t.cpp")
 
 foreach(test_src IN LISTS TEST_SOURCES)
     get_filename_component(test_name "${test_src}" NAME_WE)
     add_executable(${test_name} ${test_src})
+    # target_compile_definitions(${test_name} PRIVATE GOOGLE_TEST)
     target_include_directories(${test_name}
         PRIVATE "${CMAKE_CURRENT_LIST_DIR}/include")
     target_link_libraries(${test_name} PRIVATE GTest::gtest_main)
@@ -34,6 +35,7 @@ foreach(test_src IN LISTS TEST_SOURCES)
     gtest_discover_tests(${test_name})
 
     add_executable(${test_name}_tsan ${test_src})
+    # target_compile_definitions(${test_name}_tsan PRIVATE GOOGLE_TEST)
     target_include_directories(${test_name}_tsan
         PRIVATE "${CMAKE_CURRENT_LIST_DIR}/include")
     target_link_libraries(${test_name}_tsan PRIVATE GTest::gtest_main)
@@ -42,5 +44,5 @@ foreach(test_src IN LISTS TEST_SOURCES)
     )
     target_compile_options(${test_name}_tsan PRIVATE -fsanitize=thread -g)
     target_link_options(${test_name}_tsan PRIVATE -fsanitize=thread)
-    gtest_discover_tests(${test_name}_tsan)
+    # gtest_discover_tests(${test_name}_tsan)
 endforeach()

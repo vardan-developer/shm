@@ -1,12 +1,13 @@
 #pragma once
 
+#include "base_buffer.hpp"
+#include "common.hpp"
 #include <atomic>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
-
-#include "base_buffer.hpp"
-#include "common.hpp"
+#ifdef GOOGLE_TEST
+#endif
 
 namespace Code::Buffer {
 
@@ -180,7 +181,8 @@ class SPSCBufferOverwrite : public BaseBuffer<SPSCBufferOverwrite<MaxObjSize>, t
                 if (p_head > tail) {
                     // if tail has been overwritten then it is possible that head is
                     // very ahead so in that case we will move tail to `p_head-NumSlots+1`
-                    this->set_tail(p_head - this->_slot_num_elements->data + 1, relaxed);
+                    this->set_tail(this->get_head(relaxed) - this->_slot_num_elements->data,
+                                   relaxed);
                 }
                 return {{}, POP_STATUS::OVERWRITTEN};
             }
