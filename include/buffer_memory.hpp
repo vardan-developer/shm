@@ -97,13 +97,13 @@ template<size_t MaxObjSize, size_t NumSlots, bool Overwrite> class BufferAllocat
             }
 
             // open shm and select the owner
-            auto fd = shm_open(params.shm_name.c_str(), params.shm_oflag, params.shm_perm);
+            auto fd = shm_open(params.shm_name, params.shm_oflag, params.shm_perm);
             if (fd == -1) {
                 auto err = errno;
                 if (err == EEXIST) {
                     auto shm_oflag = params.shm_oflag;
                     shm_oflag = shm_oflag & ~(O_CREAT | O_EXCL);
-                    fd = shm_open(params.shm_name.c_str(), shm_oflag, params.shm_perm);
+                    fd = shm_open(params.shm_name, shm_oflag, params.shm_perm);
                     if (fd == -1) {
                         return nullptr;
                     }

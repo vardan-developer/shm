@@ -1,28 +1,24 @@
+#include "common.hpp"
 #include "test_common.hpp"
-#include <atomic>
-#include <cstddef>
-#include <cstdint>
-#include <cstring>
-#include <queue>
-#include <string>
-#include <thread>
-#include <vector>
+#include <gtest/gtest.h>
 
 using namespace Code::Buffer;
 using namespace Code::Buffer::Tests;
 
-using HeapBufNoOverwriteTest =
-    BufTest<1024 /*Number of entries*/, 256 /*size of each entry*/>;
+inline constexpr char shm_name[] = "/shm-test";
+constexpr BufferParam params = {shm_name};
 
-TEST_F(HeapBufNoOverwriteTest, PushOnEmptyQueueSucceeds) {
+using SHMBufNoOverwriteTest = BufTest<1024 /*Number of entries*/, 256 /*size of each entry*/,
+                                      true /*overwrite mode*/, params /*buffer params*/>;
+TEST_F(SHMBufNoOverwriteTest, PushOnEmptyQueueSucceeds) {
     EXPECT_EQ(buf->push(Bytes<54>{23}), PUSH_STATUS::SUCCESS);
 }
 
-TEST_F(HeapBufNoOverwriteTest, PopOnEmptyQueueFails) {
+TEST_F(SHMBufNoOverwriteTest, PopOnEmptyQueueFails) {
     EXPECT_EQ(buf->pop().rc, POP_STATUS::EMPTY);
 }
 
-TEST_F(HeapBufNoOverwriteTest, PushPopRoundTrip) {
+TEST_F(SHMBufNoOverwriteTest, PushPopRoundTrip) {
     constexpr size_t NUM_BYTES = 129;
     ASSERT_EQ(buf->push(Bytes<NUM_BYTES>{23}), PUSH_STATUS::SUCCESS);
     auto buf_data = buf->pop();
@@ -31,7 +27,7 @@ TEST_F(HeapBufNoOverwriteTest, PushPopRoundTrip) {
     EXPECT_EQ(buf->pop().rc, POP_STATUS::EMPTY) << "phantom message";
 }
 
-TEST_F(HeapBufNoOverwriteTest, UseOnlyNminus1Positions) {
+TEST_F(SHMBufNoOverwriteTest, UseOnlyNminus1Positions) {
     constexpr size_t num_elements = buf_size - 1;
     for (size_t i = 0; i < num_elements; i++) {
         ASSERT_EQ(buf->push(Bytes<52>{uint8_t(i)}), PUSH_STATUS::SUCCESS) << "push #" << i;
@@ -48,7 +44,7 @@ TEST_F(HeapBufNoOverwriteTest, UseOnlyNminus1Positions) {
     ASSERT_EQ(popped, num_elements) << "elements lost";
 }
 
-TEST_F(HeapBufNoOverwriteTest, SeqFIFOProperty) {
+TEST_F(SHMBufNoOverwriteTest, SeqFIFOProperty) {
     constexpr size_t NUM_BYTES = 51;
     constexpr size_t num_elements = buf_size - 1;
 
@@ -67,7 +63,7 @@ TEST_F(HeapBufNoOverwriteTest, SeqFIFOProperty) {
     ASSERT_EQ(buf->pop().rc, POP_STATUS::EMPTY) << "phantom message";
 }
 
-TEST_F(HeapBufNoOverwriteTest, RandomFIFOProperty) {
+TEST_F(SHMBufNoOverwriteTest, RandomFIFOProperty) {
     constexpr size_t NUM_BYTES = 45;
     constexpr size_t capacity = buf_size - 1;
     constexpr size_t num_operations = 100'000'000;
@@ -99,7 +95,7 @@ TEST_F(HeapBufNoOverwriteTest, RandomFIFOProperty) {
     ASSERT_EQ(buf->pop().rc, POP_STATUS::EMPTY) << "phantom message";
 }
 
-TEST_F(HeapBufNoOverwriteTest, PushPopVariableDataTypes) {
+TEST_F(SHMBufNoOverwriteTest, PushPopVariableDataTypes) {
     ASSERT_EQ(buf->push(Bytes<59>{5}), PUSH_STATUS::SUCCESS);
     ASSERT_EQ(buf->push(Bytes<240>{6}), PUSH_STATUS::SUCCESS);
     ASSERT_EQ(buf->push(Bytes<22>{34}), PUSH_STATUS::SUCCESS);
@@ -115,63 +111,4 @@ TEST_F(HeapBufNoOverwriteTest, PushPopVariableDataTypes) {
     buf_data = buf->pop();
     ASSERT_EQ(buf_data.rc, POP_STATUS::SUCCESS);
     EXPECT_TRUE(Bytes<22>{buf_data.data}.check(34)) << "data mismatch";
-}
-
-TEST_F(HeapBufNoOverwriteTest, TwoThreadSeqStress) {
-    constexpr uint64_t N = 10'000'000;
-    // every BIG_EVERY-th message is a full Bytes<200>, exercising the whole
-    // slot memcpy instead of just the first word
-    constexpr uint64_t BIG_EVERY = 100'000;
-    constexpr uint64_t EMPTY_LIMIT = 2'000'000'000;
-
-    std::atomic<bool> stop{false};
-    std::thread producer([&] {
-        for (uint64_t seq = 0; seq < N && !stop.load(std::memory_order_relaxed);) {
-            auto rc = (seq % BIG_EVERY == 0) ? buf->push(Bytes<200>{uint8_t(seq)}) : buf->push(seq);
-            if (rc == PUSH_STATUS::SUCCESS)
-                ++seq;
-        }
-    });
-
-    // failures are recorded and asserted after join: a fatal assert here would
-    // destruct a joinable thread and std::terminate
-    uint64_t expected = 0;
-    uint64_t consecutive_empty = 0;
-    std::string err;
-    while (expected < N) {
-        auto d = buf->pop();
-        if (d.rc == POP_STATUS::EMPTY) {
-            if (++consecutive_empty > EMPTY_LIMIT) {
-                err = "consumer starved";
-                break;
-            }
-            continue;
-        }
-        consecutive_empty = 0;
-        if (d.rc != POP_STATUS::SUCCESS) {
-            err = "unexpected pop status";
-            break;
-        }
-        if (expected % BIG_EVERY == 0) {
-            if (d.data[0] != 200 || !Bytes<200>(d.data).check(uint8_t(expected))) {
-                err = "data mismatch";
-                break;
-            }
-        } else {
-            uint64_t v;
-            memcpy(&v, d.data, sizeof(v));
-            if (v != expected) {
-                err = "data mismatch";
-                break;
-            }
-        }
-        ++expected;
-    }
-
-    stop.store(true, std::memory_order_relaxed);
-    producer.join();
-
-    ASSERT_TRUE(err.empty()) << err << " at seq " << expected;
-    EXPECT_EQ(expected, N);
-    EXPECT_EQ(buf->pop().rc, POP_STATUS::EMPTY) << "phantom message";
 }

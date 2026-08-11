@@ -54,16 +54,22 @@ struct BufferParam {
         BUFFER_TYPE type;
 
         // If BUFFER_TYPE is SHM
-        std::string shm_name;
+        const char* shm_name;
         int shm_oflag = 0;
         mode_t shm_perm = 0;
 
         int mmap_prot = 0;
         int mmap_flags = 0;
 
-        BufferParam()
-            : type(BUFFER_TYPE::HEAP) {}
-        BufferParam(const std::string& _shm_name, int _shm_oflag = O_RDWR | O_CREAT | O_EXCL,
+        constexpr BufferParam()
+            : type(BUFFER_TYPE::HEAP)
+            , shm_name(nullptr)
+            , shm_oflag(0)
+            , shm_perm(mode_t(0))
+            , mmap_prot(0)
+            , mmap_flags(0) {}
+
+        constexpr BufferParam(const char* _shm_name, int _shm_oflag = O_RDWR | O_CREAT | O_EXCL,
                     mode_t _shm_perm = 0600, int _mmap_prot = PROT_READ | PROT_WRITE,
                     int _mmap_flags = MAP_SHARED)
             : type(BUFFER_TYPE::SHM)

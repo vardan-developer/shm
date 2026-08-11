@@ -71,6 +71,9 @@ class BaseBuffer {
             , mask(_slot_num_elements->data - 1)
             , _c_head(_slot_head->data)
             , _c_tail(_slot_tail->data) {
+            if (buf == nullptr) {
+                throw std::invalid_argument("passed in a nullptr, a valid buffer pointer expected");
+            }
             if (!isPowerOfTwo(_slot_num_elements->data)) {
                 throw std::invalid_argument(
                     "the number of elements in the queue must be a power of 2");

@@ -10,17 +10,18 @@
 using namespace Code::Buffer;
 using namespace Code::Buffer::Tests;
 
-using HeapBufOverwriteSingleTest = HeapBufTest<16, 256, true>;
+using HeapBufOverwriteTest =
+    BufTest<1024 /*Number of entries*/, 256 /*size of each entry*/, true /*overwrite mode*/>;
 
-TEST_F(HeapBufOverwriteSingleTest, PushOnEmptyQueueSucceeds) {
+TEST_F(HeapBufOverwriteTest, PushOnEmptyQueueSucceeds) {
     EXPECT_EQ(buf->push(Bytes<54>{23}), PUSH_STATUS::SUCCESS);
 }
 
-TEST_F(HeapBufOverwriteSingleTest, PopOnEmptyQueueFails) {
+TEST_F(HeapBufOverwriteTest, PopOnEmptyQueueFails) {
     EXPECT_EQ(buf->pop().rc, POP_STATUS::EMPTY);
 }
 
-TEST_F(HeapBufOverwriteSingleTest, PushPopRoundTrip) {
+TEST_F(HeapBufOverwriteTest, PushPopRoundTrip) {
     constexpr size_t NUM_BYTES = 129;
     ASSERT_EQ(buf->push(Bytes<NUM_BYTES>{23}), PUSH_STATUS::SUCCESS);
     auto buf_data = buf->pop();
@@ -29,14 +30,14 @@ TEST_F(HeapBufOverwriteSingleTest, PushPopRoundTrip) {
     EXPECT_EQ(buf->pop().rc, POP_STATUS::EMPTY) << "phantom message";
 }
 
-TEST_F(HeapBufOverwriteSingleTest, PushAlwaysSucceeds) {
+TEST_F(HeapBufOverwriteTest, PushAlwaysSucceeds) {
     size_t num_elements = buf_size * get_random() + get_random();
     for (size_t i = 0; i < num_elements; i++) {
         ASSERT_EQ(buf->push(Bytes<52>{uint8_t(i)}), PUSH_STATUS::SUCCESS) << "push #" << i;
     }
 }
 
-TEST_F(HeapBufOverwriteSingleTest, PopSucceedsAfterOverwriteStatusIfNoWrite) {
+TEST_F(HeapBufOverwriteTest, PopSucceedsAfterOverwriteStatusIfNoWrite) {
     size_t num_elements = buf_size * get_random() + get_random();
     for (size_t i = 0; i < num_elements; i++) {
         ASSERT_EQ(buf->push(Bytes<52>{uint8_t(i)}), PUSH_STATUS::SUCCESS) << "push #" << i;
@@ -45,7 +46,7 @@ TEST_F(HeapBufOverwriteSingleTest, PopSucceedsAfterOverwriteStatusIfNoWrite) {
     ASSERT_EQ(buf->pop().rc, POP_STATUS::SUCCESS) << "num_elements " << num_elements;
 }
 
-TEST_F(HeapBufOverwriteSingleTest, UseOnlyNPositions) {
+TEST_F(HeapBufOverwriteTest, UseOnlyNPositions) {
     size_t num_elements = buf_size * get_random() + get_random();
     for (size_t i = 0; i < num_elements; i++) {
         ASSERT_EQ(buf->push(Bytes<52>{uint8_t(i)}), PUSH_STATUS::SUCCESS) << "push #" << i;
@@ -60,7 +61,7 @@ TEST_F(HeapBufOverwriteSingleTest, UseOnlyNPositions) {
     ASSERT_EQ(popped, buf_size) << "elements lost";
 }
 
-TEST_F(HeapBufOverwriteSingleTest, SeqFIFOProperty) {
+TEST_F(HeapBufOverwriteTest, SeqFIFOProperty) {
     constexpr size_t NUM_BYTES = 51;
     constexpr size_t num_elements = buf_size - 1;
 
@@ -78,7 +79,7 @@ TEST_F(HeapBufOverwriteSingleTest, SeqFIFOProperty) {
     ASSERT_EQ(buf->pop().rc, POP_STATUS::EMPTY) << "phantom message";
 }
 
-TEST_F(HeapBufOverwriteSingleTest, RandomFIFOProperty) {
+TEST_F(HeapBufOverwriteTest, RandomFIFOProperty) {
     constexpr size_t NUM_BYTES = 45;
     constexpr size_t capacity = buf_size;
     constexpr size_t num_operations = 100'000'000;
@@ -126,7 +127,7 @@ TEST_F(HeapBufOverwriteSingleTest, RandomFIFOProperty) {
  * announced via OVERWRITTEN, and full drain through seq N-1 once the producer
  * stops.
  */
-TEST_F(HeapBufOverwriteSingleTest, TwoThreadStress) {
+TEST_F(HeapBufOverwriteTest, TwoThreadStress) {
     constexpr uint64_t N = 10'000'000;
     constexpr uint64_t NO_PROGRESS_LIMIT = 2'000'000'000;
 

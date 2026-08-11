@@ -1,6 +1,7 @@
 #pragma once
 
 #include "buffer_memory.hpp"
+#include "common.hpp"
 #include "spsc_buffer.hpp"
 #include <cstdint>
 #include <cstring>
@@ -12,18 +13,19 @@
 
 namespace Code::Buffer::Tests {
 
-template<size_t BufSize, size_t ObjSize, bool Overwrite> class HeapBufTest : public testing::Test {
+template<size_t BufSize, size_t ObjSize, bool Overwrite = false, BufferParam Params = BufferParam()>
+class BufTest : public testing::Test {
     protected:
         static constexpr size_t buf_size = BufSize;
         static constexpr size_t MaxObjSize = ObjSize;
         using Queue =
             std::conditional_t<Overwrite, SPSCBufferOverwrite<ObjSize>, SPSCBuffer<ObjSize>>;
 
-        BufferAllocator<ObjSize, BufSize, Overwrite> allocator{};
+        BufferAllocator<ObjSize, BufSize, Overwrite> allocator{Params};
         std::optional<Queue> buf;
 
         void SetUp() override {
-            ASSERT_NE(allocator.get_buf(), nullptr) << "heap allocation failed";
+            ASSERT_NE(allocator.get_buf(), nullptr) << "memory allocation failed";
             buf.emplace(allocator.get_buf());
         }
 };
