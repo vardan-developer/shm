@@ -31,6 +31,14 @@ template<size_t MaxObjSize, size_t NumSlots, bool Overwrite> class BufferAllocat
             , owner(false)
             , buf(nullptr) {
 
+            if (params.shm_name != nullptr) {
+                // take ownership of the name of shm
+                auto _len = strlen(params.shm_name);
+                char* _tmp = new char[_len + 1];
+                std::memcpy(_tmp, params.shm_name, _len + 1);
+                params.shm_name = _tmp;
+            }
+
             alloc_buffer();
             if (buf == nullptr) {
                 return;
@@ -55,6 +63,7 @@ template<size_t MaxObjSize, size_t NumSlots, bool Overwrite> class BufferAllocat
                 return *this;
             }
             free_buffer();
+            delete[] params.shm_name;
             params = o.params;
             owner = o.owner;
             buf = o.buf;
@@ -68,7 +77,10 @@ template<size_t MaxObjSize, size_t NumSlots, bool Overwrite> class BufferAllocat
         BufferAllocator(const BufferAllocator&) = delete;
         BufferAllocator& operator=(const BufferAllocator&) = delete;
 
-        ~BufferAllocator() { free_buffer(); }
+        ~BufferAllocator() {
+            free_buffer();
+            delete[] params.shm_name;
+        }
 
         uint8_t* get_buf() const { return buf; }
 
