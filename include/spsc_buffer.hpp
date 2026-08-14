@@ -45,7 +45,13 @@ class SPSCBuffer : public BaseBuffer<SPSCBuffer<MaxObjSize>, false, MaxObjSize> 
             bool goto_top = true;
         top_c:
             auto head = this->_c_head;
-            if (head == tail) {
+            if (head <= tail) {
+                // <= rather than ==: _c_head is a per-object cache, but the live indices
+                // sit in shm. If the consumer role is handed to another object/process
+                // (one consumer at a time, so SPSC still holds), that consumer can advance
+                // the shared tail past this object's stale cached head, making tail exceed
+                // _c_head. A single heap-backed object can never observe this, since every
+                // update then flows through one cache.
                 if (goto_top) {
                     goto_top = false;
                     this->refresh_head(acquire);

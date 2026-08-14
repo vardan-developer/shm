@@ -3,15 +3,19 @@
 #include "buffer_memory.hpp"
 #include "common.hpp"
 #include "spsc_buffer.hpp"
+#include <alloca.h>
 #include <cstdint>
 #include <cstring>
 #include <gtest/gtest.h>
 #include <optional>
 #include <random>
 #include <stdexcept>
+#include <string>
 #include <type_traits>
 
 namespace Code::Buffer::Tests {
+
+inline uint64_t get_random(uint64_t, uint64_t);
 
 template<size_t BufSize, size_t ObjSize, bool Overwrite = false, BufferParam Params = BufferParam()>
 class BufTest : public testing::Test {
@@ -20,13 +24,66 @@ class BufTest : public testing::Test {
         static constexpr size_t MaxObjSize = ObjSize;
         using Queue =
             std::conditional_t<Overwrite, SPSCBufferOverwrite<ObjSize>, SPSCBuffer<ObjSize>>;
+        using Alloc = BufferAllocator<ObjSize, BufSize, Overwrite>;
 
-        BufferAllocator<ObjSize, BufSize, Overwrite> allocator{Params};
+        BufferParam params{Params};
+        std::optional<Alloc> allocator;
         std::optional<Queue> buf;
 
+        BufTest() {
+            if (params.shm_name) {
+                std::string _tmp = params.shm_name + std::to_string(get_random(0, 10002100312312));
+                params.shm_name = _tmp.c_str();
+            }
+            allocator.emplace(params);
+        }
+
         void SetUp() override {
-            ASSERT_NE(allocator.get_buf(), nullptr) << "memory allocation failed";
-            buf.emplace(allocator.get_buf());
+            ASSERT_NE(allocator->get_buf(), nullptr) << "memory allocation failed";
+            buf.emplace(allocator->get_buf());
+        }
+};
+
+template<size_t BufSize, size_t ObjSize, bool Overwrite = false,
+         BufferParam Params = BufferParam("my-shm-perm")>
+class BufTestSHM : public testing::Test {
+    protected:
+        static constexpr size_t buf_size = BufSize;
+        static constexpr size_t MaxObjSize = ObjSize;
+        using Queue =
+            std::conditional_t<Overwrite, SPSCBufferOverwrite<ObjSize>, SPSCBuffer<ObjSize>>;
+        using Alloc = BufferAllocator<ObjSize, BufSize, Overwrite>;
+
+        BufferParam params{Params};
+        std::optional<Alloc> allocator1, allocator2;
+        std::optional<Queue> buf1, buf2;
+
+        BufTestSHM() {
+            if (params.shm_name == nullptr || params.type != BUFFER_TYPE::SHM) {
+                return;
+            }
+            std::string _tmp = params.shm_name + std::to_string(get_random(0, 10002100312312));
+            params.shm_name = _tmp.c_str();
+            allocator1.emplace(params);
+            allocator2.emplace(params);
+        }
+
+        void SetUp() override {
+            ASSERT_TRUE(allocator1.has_value())
+                << "Allocator not initialized, either type is not shm or shm_name is null";
+            ASSERT_TRUE(allocator2.has_value())
+                << "Allocator not initialized, either type is not shm or shm_name is null";
+            ASSERT_NE(params.shm_name, nullptr) << "SHM name cannot be null";
+            ASSERT_NE(allocator1->get_buf(), nullptr) << "memory allocation failed";
+            ASSERT_NE(allocator2->get_buf(), nullptr) << "memory allocation failed";
+            buf1.emplace(allocator1->get_buf());
+            buf2.emplace(allocator2->get_buf());
+        }
+
+        std::optional<Queue>& get_random_buf() {
+            if (get_random(0, 1))
+                return buf1;
+            return buf2;
         }
 };
 
