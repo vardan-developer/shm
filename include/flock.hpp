@@ -1,9 +1,12 @@
 #pragma once
 
+#include "common.hpp"
 #include <cerrno>
+#include <chrono>
 #include <sys/fcntl.h>
 #include <sys/file.h>
 #include <sys/mman.h>
+#include <thread>
 #include <unistd.h>
 namespace Code::Buffer {
 
@@ -20,8 +23,14 @@ class FLock {
         int fd;
         FLOCK_TYPE _lock_type;
 
-    public:
+        FLOCK_TYPE strip_NB(FLOCK_TYPE lock_type) {
+            int stripped_lock = static_cast<int>(lock_type) & ~LOCK_NB;
+            return static_cast<FLOCK_TYPE>(stripped_lock);
+        }
 
+        bool is_NB(FLOCK_TYPE lock_type) { return static_cast<int>(lock_type) & LOCK_NB; }
+
+    public:
         FLock(const FLock& o) = delete;
         FLock& operator=(const FLock& o) = delete;
 
@@ -53,17 +62,32 @@ class FLock {
             return *this;
         }
 
-        int flock(FLOCK_TYPE lock_type) {
-            // this is a blocking call if you do not want to block use the NB versions
+        int flock(FLOCK_TYPE lock_type,
+                  std::chrono::microseconds timeout = std::chrono::microseconds{5}) {
+            // this is a blocking call, if you do not want to block use the NB versions
+            // with timeout
             if (flock_ready()) {
+
+                auto deadline = std::chrono::steady_clock::now() + timeout;
+                auto retry = [&] {
+                    if (std::chrono::steady_clock::now() >= deadline)
+                        return false;
+                    bool _retry = errno == EINTR || (is_NB(lock_type) && errno == EWOULDBLOCK);
+                    if (_retry)
+                        std::this_thread::sleep_for(POLL_SLEEP_TIME);
+                    return _retry;
+                };
+
                 int rc = -1;
                 do {
                     rc = ::flock(fd, static_cast<int>(lock_type));
-                } while (rc == -1 && errno == EINTR);
+                } while (rc == -1 && retry());
+
                 if (rc < 0) {
+                    _lock_type = FLOCK_TYPE::UNLOCK;
                     return errno;
                 }
-                _lock_type = lock_type;
+                _lock_type = strip_NB(lock_type);
             }
             return flock_ready() ? 0 : -1; // if fd is not set return -1
         }

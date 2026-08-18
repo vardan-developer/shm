@@ -11,8 +11,7 @@
 using namespace Code::Buffer;
 using namespace Code::Buffer::Tests;
 
-using HeapBufNoOverwriteTest =
-    BufTest<1024 /*Number of entries*/, 256 /*size of each entry*/>;
+using HeapBufNoOverwriteTest = BufTest<1024 /*Number of entries*/, 256 /*size of each entry*/>;
 
 TEST_F(HeapBufNoOverwriteTest, PushOnEmptyQueueSucceeds) {
     EXPECT_EQ(buf->push(Bytes<54>{23}), PUSH_STATUS::SUCCESS);

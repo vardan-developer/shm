@@ -1,6 +1,6 @@
 #pragma once
 
-#include "buffer_memory.hpp"
+#include "allocator.hpp"
 #include "common.hpp"
 #include "spsc_buffer.hpp"
 #include <alloca.h>
@@ -45,7 +45,7 @@ class BufTest : public testing::Test {
 };
 
 template<size_t BufSize, size_t ObjSize, bool Overwrite = false,
-         BufferParam Params = BufferParam("my-shm-perm")>
+         BufferParam Params = BufferParam("/my-shm-perm")>
 class BufTestSHM : public testing::Test {
     protected:
         static constexpr size_t buf_size = BufSize;

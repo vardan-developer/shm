@@ -6,7 +6,6 @@
 #include <cstdint>
 #include <fcntl.h>
 #include <new>
-#include <string>
 #include <sys/mman.h>
 #include <sys/types.h>
 #include <type_traits>
@@ -24,7 +23,11 @@ inline constexpr auto acquire = std::memory_order_acquire;
 inline constexpr auto release = std::memory_order_release;
 inline constexpr size_t atomic_alignment = std::atomic_ref<uint64_t>::required_alignment;
 inline constexpr uint64_t MAGIC_NUMBER = 0x82efe05fb70ec3a7;
+#ifdef BUFFER_TESTING_HOOKS
+inline constexpr uint8_t MAX_POLL_TIMES = 500;
+#else
 inline constexpr uint8_t MAX_POLL_TIMES = 50;
+#endif
 inline constexpr std::chrono::milliseconds POLL_SLEEP_TIME{20};
 
 #ifndef __cpp_lib_hardware_interference_size
@@ -69,9 +72,9 @@ struct BufferParam {
             , mmap_prot(0)
             , mmap_flags(0) {}
 
-        constexpr BufferParam(const char* _shm_name, int _shm_oflag = O_RDWR | O_CREAT | O_EXCL,
-                    mode_t _shm_perm = 0600, int _mmap_prot = PROT_READ | PROT_WRITE,
-                    int _mmap_flags = MAP_SHARED)
+        constexpr BufferParam(const char* _shm_name, int _shm_oflag = O_RDWR | O_CREAT,
+                              mode_t _shm_perm = 0600, int _mmap_prot = PROT_READ | PROT_WRITE,
+                              int _mmap_flags = MAP_SHARED)
             : type(BUFFER_TYPE::SHM)
             , shm_name(_shm_name)
             , shm_oflag(_shm_oflag)
